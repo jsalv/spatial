@@ -13,7 +13,7 @@ import java.util.Collection;
  *
  * <p><b>YOU ***** MUST ***** IMPLEMENT THIS CLASS!</b></p>
  *
- * @author  ---- YOUR NAME HERE! -----
+ * @author  ---- Jemimah E.P. Salvacion -----
  *
  * @see spatial.trees.KDTree
  */
@@ -43,7 +43,10 @@ public class KDTreeNode {
      *          <b>mutable!!!</b>.
      */
     public KDTreeNode(KDPoint p){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        this.p = new KDPoint(p);
+        height = 0;
+        left = null;
+        right = null;
     }
 
     /**
@@ -57,7 +60,43 @@ public class KDTreeNode {
      * @see #delete(KDPoint, int, int)
      */
     public  void insert(KDPoint pIn, int currDim, int dims){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+    	// Base case to end recursive function
+        if (currDim == dims)
+        	return;
+        // Element goes to right tree
+        if (pIn.coords[currDim] > p.coords[currDim]) {
+        	if (right != null)
+        		insert(pIn, currDim++, dims);
+        	else {
+        		right = new KDTreeNode(pIn);
+        		right.height = 0;
+        		// Determine height calculation
+        		if (left != null ) {
+        			if (left.height == right.height || left.height < right.height)
+        				height = right.height + 1;
+        			else
+        				height = left.height + 1;
+        		}
+        		return;
+        	}
+        }
+        // Element goes to the left tree
+        if (pIn.coords[currDim] < p.coords[currDim]) {
+        	if (left != null)
+        		insert(pIn, currDim++, dims);
+        	else {
+        		left = new KDTreeNode(pIn);
+        		left.height = 0;
+        		// Determine height calculation
+        		if (right != null ) {
+        			if (right.height == left.height || right.height < left.height)
+        				height = left.height + 1;
+        			else
+        				height = right.height + 1;
+        		}
+        		return;
+        	}
+        }
     }
 
     /**
@@ -189,7 +228,7 @@ public class KDTreeNode {
      * @return the height of the subtree rooted at the current node.
      */
     public int height(){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        return height;
     }
 
     /**
@@ -198,14 +237,14 @@ public class KDTreeNode {
      * @return The {@link KDPoint} held inside this.
      */
     public KDPoint getPoint(){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        return p;
     }
 
     public KDTreeNode getLeft(){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        return left;
     }
 
     public KDTreeNode getRight(){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        return right;
     }
 }
