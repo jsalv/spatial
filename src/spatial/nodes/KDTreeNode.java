@@ -30,7 +30,64 @@ public class KDTreeNode {
     /* *************************************************************************************** */
     /* *************  PLACE ANY OTHER PRIVATE FIELDS AND YOUR PRIVATE METHODS HERE: ************ */
     /* ************************************************************************************* */
-
+    private boolean searchAux(KDTreeNode curr, KDPoint targ, int currDim, int dims) {
+    	if (curr != null) {
+    		// Base case to end recursive function
+        	if (targ.equals(curr.p))
+            	return true;
+        	if (currDim == dims)
+        		currDim = 0;
+            // Element goes to right tree
+            if (targ.coords[currDim] > curr.p.coords[currDim]) {
+            	return searchAux(curr.right, targ, ++currDim, dims);
+            }
+            // Element goes to the left tree
+            if (targ.coords[currDim] < curr.p.coords[currDim]) {
+            	return searchAux(curr.left, targ, ++currDim, dims);
+            }
+    	}	
+        return false;
+    }
+    
+    private KDTreeNode insertAux(KDTreeNode curr, KDPoint newElt, int currDim, int dims) {
+    	if (curr != null) {
+    		if (currDim == dims)
+    			currDim = 0;
+            // Element goes to right tree
+            if (newElt.coords[currDim] >= curr.p.coords[currDim]) {
+            	curr.right = insertAux(curr.right, newElt, ++currDim, dims);
+        		// Determine height calculation
+            	if (curr.left == null) {
+            		curr.height = curr.right.height + 1;
+            	} else {
+        			if (curr.left.height == curr.right.height || curr.left.height < curr.right.height)
+        				curr.height = curr.right.height + 1;
+        			else
+        				curr.height = curr.left.height + 1;
+        		}
+            	return curr;
+            }
+            // Element goes to the left tree
+            if (newElt.coords[currDim] < curr.p.coords[currDim]) {
+            	curr.left = insertAux(curr.left, newElt, ++currDim, dims);
+            	// Determine height calculation
+            	if (curr.right == null) {
+            		curr.height = curr.left.height + 1;
+            	} else {
+        			if (curr.left.height == curr.right.height || curr.left.height > curr.right.height)
+        				curr.height = curr.left.height + 1;
+        			else
+        				curr.height = curr.right.height + 1;
+        		}
+            	return curr;
+            }
+    	} else { 
+    		curr = new KDTreeNode(newElt);
+    		curr.height = 0;   		
+    	}
+    	return curr;
+    }
+   
 
     /* *********************************************************************** */
     /* ***************  IMPLEMENT THE FOLLOWING PUBLIC METHODS:  ************ */
@@ -60,43 +117,7 @@ public class KDTreeNode {
      * @see #delete(KDPoint, int, int)
      */
     public  void insert(KDPoint pIn, int currDim, int dims){
-    	// Base case to end recursive function
-        if (currDim == dims)
-        	return;
-        // Element goes to right tree
-        if (pIn.coords[currDim] > p.coords[currDim]) {
-        	if (right != null)
-        		insert(pIn, currDim++, dims);
-        	else {
-        		right = new KDTreeNode(pIn);
-        		right.height = 0;
-        		// Determine height calculation
-        		if (left != null ) {
-        			if (left.height == right.height || left.height < right.height)
-        				height = right.height + 1;
-        			else
-        				height = left.height + 1;
-        		}
-        		return;
-        	}
-        }
-        // Element goes to the left tree
-        if (pIn.coords[currDim] < p.coords[currDim]) {
-        	if (left != null)
-        		insert(pIn, currDim++, dims);
-        	else {
-        		left = new KDTreeNode(pIn);
-        		left.height = 0;
-        		// Determine height calculation
-        		if (right != null ) {
-        			if (right.height == left.height || right.height < left.height)
-        				height = left.height + 1;
-        			else
-        				height = right.height + 1;
-        		}
-        		return;
-        	}
-        }
+    	insertAux(this,pIn,currDim,dims);
     }
 
     /**
@@ -120,7 +141,45 @@ public class KDTreeNode {
      * @return A reference to this after the deletion takes place.
      */
     public KDTreeNode delete(KDPoint pIn, int currDim, int dims){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        return deleteAux(this, pIn, currDim, dims);
+    }
+    
+    private KDTreeNode deleteAux(KDTreeNode curr, KDPoint toDelete, int currDim, int dims) {
+    	if (curr != null) {
+    		if (curr.p.equals(toDelete)) {
+    			if (curr.left == null && curr.right == null) {
+    				curr = null;  				
+    			} else if (curr.right != null) {	
+    				curr.p = findMin(curr.right, curr.right.p, currDim, dims);
+    				curr.right = deleteAux(curr.right, curr.p, currDim, dims);
+    			}
+    			return curr;
+    		}
+    		if (currDim == dims)
+    			currDim = 0;
+    		// Element goes to right tree
+            if (toDelete.coords[currDim] > curr.p.coords[currDim]) {
+            	curr.right = deleteAux(curr.right, toDelete, ++currDim, dims);
+            }
+            // Element goes to the left tree
+            if (toDelete.coords[currDim] < curr.p.coords[currDim]) {
+            	curr.left = deleteAux(curr.left, toDelete, ++currDim, dims);
+            }
+    	}
+    	
+    	return curr;
+    }
+    
+    private KDPoint findMin(KDTreeNode curr, KDPoint min, int currDim, int dims) {
+    	if (curr != null) {
+	    	if (curr.p.coords[currDim] < min.coords[currDim]) {
+	    		min = curr.p;
+	    	} else {
+	    		min = findMin(curr.right, min, currDim, dims);
+	    		min = findMin(curr.left, min, currDim, dims);
+	    	}
+    	}
+    	return min;
     }
 
     /**
@@ -131,7 +190,7 @@ public class KDTreeNode {
      * @return true iff pIn was found in the subtree rooted at this, false otherwise.
      */
     public  boolean search(KDPoint pIn, int currDim, int dims){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+    	return searchAux(this, pIn, currDim, dims);
     }
 
     /**
