@@ -224,8 +224,11 @@ public class KDTreeNode {
     			// Pruning
     			currDim = (currDim - 1) % dims;
     			if (curr.right != null) {
-    				if (anchor.coords[currDim] - curr.p.coords[currDim] <= KDPoint.euclideanDistance(anchor, queue.last()));
+    				double x = anchor.coords[currDim] - curr.p.coords[currDim];
+    				double y = KDPoint.euclideanDistance(anchor, queue.last());
+    				if (x <= y) {
     					kNNAux(curr.right, k, anchor, queue, ++currDim, dims);
+    				}
     			} else {
     				return;
     			}
