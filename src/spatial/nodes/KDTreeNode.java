@@ -4,6 +4,7 @@ import spatial.exceptions.UnimplementedMethodException;
 import spatial.kdpoint.KDPoint;
 import spatial.knnutils.BoundedPriorityQueue;
 import spatial.knnutils.NNData;
+import spatial.trees.KDTree;
 
 import java.util.Collection;
 
@@ -87,22 +88,57 @@ public class KDTreeNode {
     	}
     	return curr;
     }
-    
-    /* Private method to calculate distance between two points */
-    private double distance(KDPoint point1, KDPoint point2, int dims) {
-    	double distance = 0;
-    	for (int i = 0; i < dims; i++) {
-    		distance += Math.pow(point1.coords[i] - point2.coords[i], 2);
+    /* Private methods for delete(...) */
+    private KDTreeNode deleteAux(KDTreeNode curr, KDPoint toDelete, int currDim, int dims) {
+    	if (curr != null) {
+    		if (curr.p.equals(toDelete)) {
+    			// Condition 1: Leaf Node
+    			if (curr.left == null && curr.right == null) {
+    				curr = null; 
+    			// Condition 2: Non-null right subtree
+    			} else if (curr.right != null) {	
+    				curr.p = findMin(curr.right, curr.right.p, currDim, dims);
+    				curr.right = deleteAux(curr.right, curr.p, currDim, dims);
+    			// Condition 3: Non-null left subtree
+    			} else {
+    				curr.p = findMin(curr.left, curr.left.p, currDim, dims);
+    				curr.left = deleteAux(curr.left, curr.p, currDim, dims);
+    			}
+    			return curr;
+    		}
+    		if (currDim == dims)
+    			currDim = 0;
+    		// Element goes to right tree
+            if (toDelete.coords[currDim] > curr.p.coords[currDim]) {
+            	curr.right = deleteAux(curr.right, toDelete, ++currDim, dims);
+            }
+            // Element goes to the left tree
+            if (toDelete.coords[currDim] < curr.p.coords[currDim]) {
+            	curr.left = deleteAux(curr.left, toDelete, ++currDim, dims);
+            }
     	}
-    	return Math.sqrt(distance);
+    	
+    	return curr;
+    }
+    
+    private KDPoint findMin(KDTreeNode curr, KDPoint min, int currDim, int dims) {
+    	if (curr != null) {
+	    	if (curr.p.coords[currDim] <= min.coords[currDim]) {
+	    		min = curr.p;
+	    	} 
+	    	min = findMin(curr.right, min, currDim, dims);
+	    	min = findMin(curr.left, min, currDim, dims);
+	    	
+    	}
+    	return min;
     }
     
     /* Private method to recurse using current KDTreeNode */
     private void rangeAux(KDTreeNode curr, KDPoint anchor, Collection<KDPoint> results, double range, int currDim, int dims) {
     	// Greedy
     	if (curr != null) {
-    		double dst = distance(anchor, curr.p, dims);
-    		if (dst < range) {
+    		double dst = KDPoint.euclideanDistance(anchor, curr.p);
+    		if (dst <= range) {
     			results.add(curr.p);
     		}
     		currDim = currDim % dims;
@@ -110,8 +146,10 @@ public class KDTreeNode {
     		if (anchor.coords[currDim] >= curr.p.coords[currDim]) {
     			rangeAux(curr.right, anchor, results, range, ++currDim, dims);
     			// Pruning
-    			if (results.contains(curr.p)) {
-    				rangeAux(curr.left, anchor, results, range, currDim, dims);
+    			currDim = (currDim-1) % dims;
+    			if (curr.left != null) {
+    				if (anchor.coords[currDim] - curr.p.coords[currDim] <= range)
+    					rangeAux(curr.left, anchor, results, range, ++currDim, dims);
     			} else {
     				return;
     			}
@@ -119,15 +157,81 @@ public class KDTreeNode {
     		} else {
     			rangeAux(curr.left, anchor, results, range, ++currDim, dims);
     			// Pruning
-    			if (results.contains(curr.p)) {
-    				rangeAux(curr.right, anchor, results, range, currDim, dims);
+    			currDim = (currDim-1) % dims;
+    			if (curr.right != null) {
+    				if (anchor.coords[currDim] - curr.p.coords[currDim] <= range)
+    					rangeAux(curr.right, anchor, results, range, ++currDim, dims);
     			} else {
     				return;
     			}
     		}		
     	}
     }
-   
+    
+    /* Private method to assist nearestNeighbor(...) */
+    private NNData<KDPoint> nnAux(KDTreeNode curr, KDPoint anchor, int currDim, NNData<KDPoint > n, int dims) {
+    	if (curr != null) {
+    		double distance = KDPoint.euclideanDistance(anchor, curr.p);
+    		if (n.getBestDist() > distance || n.getBestDist() == KDTree.INFTY)
+    			n.update(curr.p, distance);
+    		// Insure currDim will alternate
+    		currDim = currDim % dims;
+    		// Traverse right
+    		if (anchor.coords[currDim] >= curr.p.coords[currDim]) {
+    			n = nnAux(curr.right, anchor, ++currDim, n, dims);
+    			// Pruning
+    			currDim = (currDim - 1) % dims;
+    			if (curr.left != null)
+    				n = nnAux(curr.left, anchor, ++currDim, n, dims);
+    			else
+    				return n;  			
+    		// Traverse left
+    		} else {
+    			n = nnAux(curr.left, anchor, ++currDim, n, dims);
+    			// Pruning
+    			currDim = (currDim - 1) % dims;
+    			if (curr.right != null)
+    				n = nnAux(curr.right, anchor, ++currDim, n, dims);
+    			else
+    				return n;
+    		}
+    	}
+    	return n;
+    }
+    
+    /* Private node to assist kNearestNeighbor(...) */
+    private void kNNAux(KDTreeNode curr, int k, KDPoint anchor, BoundedPriorityQueue<KDPoint> queue, int currDim, int dims) {
+    	if (curr != null) {
+    		double priority = KDPoint.euclideanDistance(anchor, curr.p);
+    		queue.enqueue(curr.p, priority);
+    		
+    		currDim = currDim % dims;
+    		if (anchor.coords[currDim] >= curr.p.coords[currDim]) {
+    			kNNAux(curr.right, k, anchor, queue, ++currDim, dims);
+    			// Pruning
+    			currDim = (currDim - 1) % dims;
+    			if (curr.left != null) {
+    				double x = anchor.coords[currDim] - curr.p.coords[currDim];
+    				double y = KDPoint.euclideanDistance(anchor, queue.last());
+    				if (x <= y) {
+    					kNNAux(curr.left, k, anchor, queue, ++currDim, dims);
+    				}
+    			} else {
+    				return;
+    			}
+    		} else {
+    			kNNAux(curr.left, k, anchor, queue, ++currDim, dims);
+    			// Pruning
+    			currDim = (currDim - 1) % dims;
+    			if (curr.right != null) {
+    				if (anchor.coords[currDim] - curr.p.coords[currDim] <= KDPoint.euclideanDistance(anchor, queue.last()));
+    					kNNAux(curr.right, k, anchor, queue, ++currDim, dims);
+    			} else {
+    				return;
+    			}
+    		}
+    	}
+    }
 
     /* *********************************************************************** */
     /* ***************  IMPLEMENT THE FOLLOWING PUBLIC METHODS:  ************ */
@@ -182,50 +286,6 @@ public class KDTreeNode {
      */
     public KDTreeNode delete(KDPoint pIn, int currDim, int dims){
         return deleteAux(this, pIn, currDim, dims);
-    }
-    
-    private KDTreeNode deleteAux(KDTreeNode curr, KDPoint toDelete, int currDim, int dims) {
-    	if (curr != null) {
-    		if (curr.p.equals(toDelete)) {
-    			// Condition 1: Leaf Node
-    			if (curr.left == null && curr.right == null) {
-    				curr = null; 
-    			// Condition 2: Non-null right subtree
-    			} else if (curr.right != null) {	
-    				curr.p = findMin(curr.right, curr.right.p, currDim, dims);
-    				curr.right = deleteAux(curr.right, curr.p, currDim, dims);
-    			// Condition 3: Non-null left subtree
-    			} else {
-    				curr.p = findMin(curr.left, curr.left.p, currDim, dims);
-    				curr.left = deleteAux(curr.left, curr.p, currDim, dims);
-    			}
-    			return curr;
-    		}
-    		if (currDim == dims)
-    			currDim = 0;
-    		// Element goes to right tree
-            if (toDelete.coords[currDim] > curr.p.coords[currDim]) {
-            	curr.right = deleteAux(curr.right, toDelete, ++currDim, dims);
-            }
-            // Element goes to the left tree
-            if (toDelete.coords[currDim] < curr.p.coords[currDim]) {
-            	curr.left = deleteAux(curr.left, toDelete, ++currDim, dims);
-            }
-    	}
-    	
-    	return curr;
-    }
-    
-    private KDPoint findMin(KDTreeNode curr, KDPoint min, int currDim, int dims) {
-    	if (curr != null) {
-	    	if (curr.p.coords[currDim] <= min.coords[currDim]) {
-	    		min = curr.p;
-	    	} 
-	    	min = findMin(curr.right, min, currDim, dims);
-	    	min = findMin(curr.left, min, currDim, dims);
-	    	
-    	}
-    	return min;
     }
 
     /**
@@ -290,7 +350,7 @@ public class KDTreeNode {
      */
     public  NNData<KDPoint> nearestNeighbor(KDPoint anchor, int currDim,
                                             NNData<KDPoint> n, int dims){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        return nnAux(this, anchor, currDim, n, dims);
     }
 
     /**
@@ -321,7 +381,7 @@ public class KDTreeNode {
      * @see BoundedPriorityQueue
      */
     public  void kNearestNeighbors(int k, KDPoint anchor, BoundedPriorityQueue<KDPoint> queue, int currDim, int dims){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+        kNNAux(this, k, anchor, queue, currDim, dims);
     }
 
     /**
