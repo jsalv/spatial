@@ -1,5 +1,6 @@
 package spatial.knnutils;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import spatial.exceptions.UnimplementedMethodException;
@@ -23,8 +24,9 @@ public class BoundedPriorityQueue<T> implements PriorityQueue<T>{
 	/* *********************************************************************** */
 	/* *************  PLACE YOUR PRIVATE FIELDS AND METHODS HERE: ************ */
 	/* *********************************************************************** */
-
-
+	private ArrayList<PriorityQueueNode<T>> data;
+	private int capacity;
+	private int insertionOrder;
 
 	/* *********************************************************************** */
 	/* ***************  IMPLEMENT THE FOLLOWING PUBLIC METHODS:  ************ */
@@ -36,7 +38,9 @@ public class BoundedPriorityQueue<T> implements PriorityQueue<T>{
 	 * @throws IllegalArgumentException if size is not a strictly positive integer.
 	 */
 	public BoundedPriorityQueue(int size) throws IllegalArgumentException{
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		data = new ArrayList<PriorityQueueNode<T>>();
+		this.capacity = size;
+		insertionOrder = 0;
 	}
 
 	/**
@@ -51,17 +55,52 @@ public class BoundedPriorityQueue<T> implements PriorityQueue<T>{
 	 */
 	@Override
 	public void enqueue(T element, double priority) {
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		if (data.isEmpty()) {
+			data.add(new PriorityQueueNode<T>(element, priority, ++insertionOrder));
+		} else if (data.size() <= capacity) {
+			ArrayList<PriorityQueueNode<T>> newData = new ArrayList<PriorityQueueNode<T>>();
+			PriorityQueueNode<T> newPQN = new PriorityQueueNode<T>(element, priority, ++insertionOrder);
+			for (int i = 0; i < data.size(); i++) {
+				if (data.get(i).getPriority() > priority || (data.get(i).getPriority() == priority && data.get(i).compareTo(newPQN) < 0)) {
+					if (newData.contains(newPQN) == false) {
+						newData.add(newPQN);
+						newData.add(data.get(i));
+					} else {
+						newData.add(data.get(i));
+					}	
+				} else {
+					
+					if (newData.contains(newPQN) == false) {
+						newData.add(data.get(i));
+						newData.add(newPQN);			
+					} else {
+						newData.set(newData.indexOf(newPQN), data.get(i));
+						newData.add(newPQN);
+					}
+				}
+			}
+			
+			// Capacity is reached
+			if (data.size() == capacity) {
+				newData.remove(newData.size()-1);
+			}
+			data.clear();
+			data.addAll(newData);
+		} 
 	}
 
 	@Override
 	public T dequeue() {
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		if (isEmpty())
+			return null;		
+		T oldFirst = first();
+		data.remove(0);
+		return oldFirst;	
 	}
 
 	@Override
 	public T first() {
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		return data.get(0).getData();
 	}
 	
 	/**
@@ -73,7 +112,7 @@ public class BoundedPriorityQueue<T> implements PriorityQueue<T>{
 	 * @return The maximum priority element in our queue, or null if the queue is empty.
 	 */
 	public T last() {
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		return data.get(data.size()-1).getData();
 	}
 
 	/**
@@ -83,21 +122,26 @@ public class BoundedPriorityQueue<T> implements PriorityQueue<T>{
 	 */
 	public boolean contains(T element)
 	{
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		for (PriorityQueueNode<T> elt : data) {
+			if (elt.getData().equals(element))
+				return true;
+		}
+		return false;
 	}
 
 	@Override
 	public int size() {
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		return data.size();
 	}
 
 	@Override
 	public boolean isEmpty() {
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		return data.isEmpty();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public Iterator<T> iterator() {
-		throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+		return (Iterator<T>) data.iterator();
 	}
 }
