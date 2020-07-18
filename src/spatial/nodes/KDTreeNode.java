@@ -87,6 +87,46 @@ public class KDTreeNode {
     	}
     	return curr;
     }
+    
+    /* Private method to calculate distance between two points */
+    private double distance(KDPoint point1, KDPoint point2, int dims) {
+    	double distance = 0;
+    	for (int i = 0; i < dims; i++) {
+    		distance += Math.pow(point1.coords[i] - point2.coords[i], 2);
+    	}
+    	return Math.sqrt(distance);
+    }
+    
+    /* Private method to recurse using current KDTreeNode */
+    private void rangeAux(KDTreeNode curr, KDPoint anchor, Collection<KDPoint> results, double range, int currDim, int dims) {
+    	// Greedy
+    	if (curr != null) {
+    		double dst = distance(anchor, curr.p, dims);
+    		if (dst < range) {
+    			results.add(curr.p);
+    		}
+    		currDim = currDim % dims;
+    		// Traverse right
+    		if (anchor.coords[currDim] >= curr.p.coords[currDim]) {
+    			rangeAux(curr.right, anchor, results, range, ++currDim, dims);
+    			// Pruning
+    			if (results.contains(curr.p)) {
+    				rangeAux(curr.left, anchor, results, range, currDim, dims);
+    			} else {
+    				return;
+    			}
+    		// Traverse left
+    		} else {
+    			rangeAux(curr.left, anchor, results, range, ++currDim, dims);
+    			// Pruning
+    			if (results.contains(curr.p)) {
+    				rangeAux(curr.right, anchor, results, range, currDim, dims);
+    			} else {
+    				return;
+    			}
+    		}		
+    	}
+    }
    
 
     /* *********************************************************************** */
@@ -147,11 +187,17 @@ public class KDTreeNode {
     private KDTreeNode deleteAux(KDTreeNode curr, KDPoint toDelete, int currDim, int dims) {
     	if (curr != null) {
     		if (curr.p.equals(toDelete)) {
+    			// Condition 1: Leaf Node
     			if (curr.left == null && curr.right == null) {
-    				curr = null;  				
+    				curr = null; 
+    			// Condition 2: Non-null right subtree
     			} else if (curr.right != null) {	
     				curr.p = findMin(curr.right, curr.right.p, currDim, dims);
     				curr.right = deleteAux(curr.right, curr.p, currDim, dims);
+    			// Condition 3: Non-null left subtree
+    			} else {
+    				curr.p = findMin(curr.left, curr.left.p, currDim, dims);
+    				curr.left = deleteAux(curr.left, curr.p, currDim, dims);
     			}
     			return curr;
     		}
@@ -172,12 +218,12 @@ public class KDTreeNode {
     
     private KDPoint findMin(KDTreeNode curr, KDPoint min, int currDim, int dims) {
     	if (curr != null) {
-	    	if (curr.p.coords[currDim] < min.coords[currDim]) {
+	    	if (curr.p.coords[currDim] <= min.coords[currDim]) {
 	    		min = curr.p;
-	    	} else {
-	    		min = findMin(curr.right, min, currDim, dims);
-	    		min = findMin(curr.left, min, currDim, dims);
-	    	}
+	    	} 
+	    	min = findMin(curr.right, min, currDim, dims);
+	    	min = findMin(curr.left, min, currDim, dims);
+	    	
     	}
     	return min;
     }
@@ -213,7 +259,7 @@ public class KDTreeNode {
      */
     public void range(KDPoint anchor, Collection<KDPoint> results,
                       double range, int currDim , int dims){
-        throw new UnimplementedMethodException(); // ERASE THIS LINE AFTER YOU IMPLEMENT THIS METHOD!
+    	rangeAux(this, anchor, results, range, currDim, dims);
     }
 
 
